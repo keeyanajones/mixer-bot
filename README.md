@@ -1,3 +1,3 @@
 # mixer-bot
 mixer bot starter
-![Bot](mixerbots_full.png)
+![Bot](bot_mixer.png)
