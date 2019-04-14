@@ -1,4 +1,4 @@
 # mixer-bot
 mixer bot starter
 
-![Bot](chibibot-mixer.png)
+React frontend and Express backend 
