@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const errors_1 = require("../errors");
+const chat_client_websocket_1 = require("@mixer/chat-client-websocket");
 const Provider_1 = require("./Provider");
 /**
  * Provider for oauth-based authentication.
@@ -77,7 +77,7 @@ class OAuthProvider extends Provider_1.Provider {
      */
     unpackResponse(res) {
         if (res.statusCode !== 200) {
-            throw new errors_1.AuthenticationFailedError(res);
+            throw new chat_client_websocket_1.AuthenticationFailedError(res);
         }
         this.tokens = {
             access: res.body.access_token,
@@ -94,11 +94,11 @@ class OAuthProvider extends Provider_1.Provider {
      */
     attempt(redirect, qs) {
         if (qs.error) {
-            return Promise.reject(new errors_1.AuthenticationFailedError(qs.error_description || 'Error from oauth: ' + qs.error));
+            return Promise.reject(new chat_client_websocket_1.AuthenticationFailedError(qs.error_description || 'Error from oauth: ' + qs.error));
         }
         if (!qs.code) {
             // XXX: https://github.com/prettier/prettier/issues/3804
-            return Promise.reject(new errors_1.AuthenticationFailedError('No error was given, but a code was not present in the query string. ' +
+            return Promise.reject(new chat_client_websocket_1.AuthenticationFailedError('No error was given, but a code was not present in the query string. ' +
                 `Make sure you're using the oauth client correctly.`)); // silly devlopers
         }
         return this.client
@@ -112,7 +112,7 @@ class OAuthProvider extends Provider_1.Provider {
      */
     refresh() {
         if (!this.tokens.refresh) {
-            return Promise.reject(new errors_1.AuthenticationFailedError('Attempted to refresh without a refresh token present.'));
+            return Promise.reject(new chat_client_websocket_1.AuthenticationFailedError('Attempted to refresh without a refresh token present.'));
         }
         return this.client
             .request('post', '/oauth/token', {

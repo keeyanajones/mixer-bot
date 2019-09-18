@@ -4,6 +4,7 @@ const path = require('path');
 const cookieParser = require('cookie-parser');
 const logger = require('morgan');
 const cors = require('cors');
+
 'use strict';
 const Mixer = require('@mixer/client-node');
 const ws = require('ws');
@@ -13,63 +14,11 @@ Carina.WebSocket = ws;
 
 const indexRouter = require('./routes/index');
 const usersRouter = require('./routes/users');
-const testAPIRouter = require('./routes/testAPI');
+const mixerAPIRouter = require('./routes/mixerAPI');
 
 const app = express();
 
 let userInfo;
-
-const client = new Mixer.Client(new Mixer.DefaultRequestRunner());
-
-const channelName = process.argv[2];
-
-client.use(new Mixer.OAuthProvider(client, {
-    clientId: 'clientId'
-}));
-
-// Live Update
-const channelId = 1234;
-
-const ca = new Carina({
-    queryString: {
-        'Client-ID': 'clientId'
-    },
-    isBot: true
-}).open();
-
-ca.subscribe(`channel:${channelId}:update`, data => {
-    console.log(data);
-});
-
-client.request('GET', `channels/${channelName}`)
-.then(res => {
-    const viewers = res.body.viewersTotal;
-    console.log(`You have ${viewers} total viewers on Mixer ...`);
-
-    let rank = 1;
-    
-    const run = (page) => {
-        return client.request('GET', '/channels', {
-            qs: {
-                page,
-                fields: 'viewersTotal',
-                order: 'viewersTotal:DESC'
-            }
-        }).then(res => {
-            for (let i = 0; i < res.body.length; i++) {
-                const channel = res.body[i];
-                if (channel.viewersTotal <= viewers) {
-                    console.log(`Your rank on Mixer is ${rank}!`);
-                    return;
-                }
-                rank++;
-            }
-            console.log(`Your rank is at least ${rank}...`);
-            return run(page + 1);
-        });
-    };
-    return run(0);
-});
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
@@ -84,69 +33,80 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
-app.use('/testAPI', testAPIRouter);
+app.use('/mixerAPI', mixerAPIRouter);
 
-// With OAuth we don't need to log in. The OAuth Provider will attach
-// the required information to all of our requests after this call.
+
+// Client
+const client = new Mixer.Client(new Mixer.DefaultRequestRunner());
+
 client.use(new Mixer.OAuthProvider(client, {
-    tokens: {
-        access: 'token',
-        expires: Date.now() + (365 * 24 * 60 * 60 * 1000)
-    }
+    clientId: '5ccbc3f1ca1600a8957d581b0c4c577cd03b406128f212fc'
 }));
 
-// Gets the user that the Access Token we provided above belongs to.
-client.request('GET', 'users/current')
-.then(response => {
-    userInfo = response.body;
-    return new Mixer.ChatService(client).join(response.body.channel.id);
-})
-.then(response => {
-    const body = response.body;
-    return createChatSocket(userInfo.id, userInfo.channel.id, body.endpoints, body.authkey);
-})
-.catch(error => {
-    console.error('Something went wrong with Mixer.');
-    console.error(error);
-});
-
-/**
-* Creates a Mixer chat socket and sets up listeners to various chat events.
-* @param {number} userId The user to authenticate as
-* @param {number} channelId The channel id to join
-* @param {string[]} endpoints An array of endpoints to connect to
-* @param {string} authkey An authentication key to connect with
-* @returns {Promise.<>}
-*/
-function createChatSocket (userId, channelId, endpoints, authkey) {
-    // Chat connection
-    const socket = new Mixer.Socket(ws, endpoints).boot();
-
-    // Greet a joined user
-    socket.on('UserJoin', data => {
-        socket.call('msg', [`Hi ${data.username}! I'm a bot! Write !ping and I will pong back!`]);
-    });
-
-    // React to our !pong command
-    socket.on('ChatMessage', data => {
-        if (data.message.message[0].data.toLowerCase().startsWith('!ping')) {
-            socket.call('msg', [`@${data.user_name} PONG!`]);
-            console.log(`Ponged ${data.user_name}`);
+    // With OAuth we don't need to log in. The OAuth Provider will attach
+    // the required information to all of our requests after this call.
+    client.use(new Mixer.OAuthProvider(client, {
+        tokens: {
+            access: 'oTxe6s5cxcd7Y46LQ0FM1dlDToXko6qN8LxB0ep9z82aFzZlHeb8KrO9RhKY6BvL',
+            expires: Date.now() + (365 * 24 * 60 * 60 * 1000)
         }
-    });
+    }));
 
-    // Handle errors
-    socket.on('error', error => {
-        console.error('Socket error');
+    // Gets the user that the Access Token we provided above belongs to.
+    client.request('GET', 'users/current')
+    .then(response => {
+        userInfo = response.body;
+        return new Mixer.ChatService(client).join(response.body.channel.id);
+    })
+    .then(response => {
+        const body = response.body;
+        return createChatSocket(userInfo.id, userInfo.channel.id, body.endpoints, body.authkey);
+    })
+    .catch(error => {
+        console.error('Something went wrong with Mixer.');
         console.error(error);
     });
 
-    return socket.auth(channelId, userId, authkey)
-    .then(() => {
-        console.log('Mixer Login Successful');
-        return socket.call('msg', ['Hi! I\'m a bot! Write !ping and I will pong back!']);
-    });
-}
+    /**
+    * Creates a Mixer chat socket and sets up listeners to various chat events.
+    * @param {number} userId The user to authenticate as
+    * @param {number} channelId The channel id to join
+    * @param {string[]} endpoints An array of endpoints to connect to
+    * @param {string} authkey An authentication key to connect with
+    * @returns {Promise.<>}
+    */
+    function createChatSocket (userId, channelId, endpoints, authkey) {
+        // Chat connection
+        const socket = new Mixer.Socket(ws, endpoints).boot();
+
+        // Greet a joined user
+        socket.on('UserJoin', data => {
+            socket.call('msg', [`Hi ${data.username}! I'm the bot! Write !commands and I will show you!`]);
+        });
+
+        // React to !commands 
+        socket.on('ChatMessage', data => {
+            if (data.message.message[0].data.toLowerCase().startsWith('!commands')) {
+                socket.call('msg', [`@${data.user_name} COMMMANDS LIST!`]);
+                console.log(`Commands List Requested by ${data.user_name}`);
+            }
+        });
+
+        // Handle errors
+        socket.on('error', error => {
+            console.error('Socket error');
+            console.error(error);
+        });
+
+        return socket.auth(channelId, userId, authkey)
+        .then(() => {
+            console.log('Mixer Login Successful');
+            return socket.call('msg', ['Hi! I will show you my Commands list if you !commands.']);
+        });
+    }
+
+
+
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
