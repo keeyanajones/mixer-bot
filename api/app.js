@@ -40,14 +40,14 @@ app.use('/mixerAPI', mixerAPIRouter);
 const client = new Mixer.Client(new Mixer.DefaultRequestRunner());
 
 client.use(new Mixer.OAuthProvider(client, {
-    clientId: '5ccbc3f1ca1600a8957d581b0c4c577cd03b406128f212fc'
+    clientId: 'Your Client ID'
 }));
 
     // With OAuth we don't need to log in. The OAuth Provider will attach
     // the required information to all of our requests after this call.
     client.use(new Mixer.OAuthProvider(client, {
         tokens: {
-            access: 'oTxe6s5cxcd7Y46LQ0FM1dlDToXko6qN8LxB0ep9z82aFzZlHeb8KrO9RhKY6BvL',
+            access: 'Your Access Token',
             expires: Date.now() + (365 * 24 * 60 * 60 * 1000)
         }
     }));
