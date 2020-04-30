@@ -1,17 +1,16 @@
+const http = require('http');
 const createError = require('http-errors');
 const express = require('express');
 const path = require('path');
 const cookieParser = require('cookie-parser');
 const logger = require('morgan');
 const cors = require('cors');
-
 'use strict';
 const Mixer = require('@mixer/client-node');
 const ws = require('ws');
 const Carina = require('carina').Carina;
 
 Carina.WebSocket = ws;
-
 const indexRouter = require('./routes/index');
 const usersRouter = require('./routes/users');
 const mixerAPIRouter = require('./routes/mixerAPI');
@@ -19,7 +18,6 @@ const mixerAPIRouter = require('./routes/mixerAPI');
 const app = express();
 
 let userInfo;
-
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
@@ -35,21 +33,39 @@ app.use('/', indexRouter);
 app.use('/users', usersRouter);
 app.use('/mixerAPI', mixerAPIRouter);
 
+/**
+ * connect to Constellation and subscribe to Live Loading updates of channel
+ **/
+const channelId = 6703403;
+const channelName = process.argv[2];
+
+const ca = new Carina({
+    queryString: {
+        'Client-ID': 'Click here to get your Client ID!',
+    },
+    isBot: true,
+}).open();
+
+ca.subscribe(`channel:${channelId}:update`, data => {
+    console.log(data);
+});
+
+// Read the host address and the port from the environment
+// This is the client ID and client secret that you obtained
+// while registering the application
+const clientID = CLIENT_ID;
+const clientSecret = CLIENT_SECRET;
 
 // Client
 const client = new Mixer.Client(new Mixer.DefaultRequestRunner());
-
-client.use(new Mixer.OAuthProvider(client, {
-    clientId: 'Your Client ID'
-}));
 
     // With OAuth we don't need to log in. The OAuth Provider will attach
     // the required information to all of our requests after this call.
     client.use(new Mixer.OAuthProvider(client, {
         tokens: {
-            access: 'Your Access Token',
+            access: CLIENT_ID,
             expires: Date.now() + (365 * 24 * 60 * 60 * 1000)
-        }
+        },
     }));
 
     // Gets the user that the Access Token we provided above belongs to.
@@ -63,7 +79,7 @@ client.use(new Mixer.OAuthProvider(client, {
         return createChatSocket(userInfo.id, userInfo.channel.id, body.endpoints, body.authkey);
     })
     .catch(error => {
-        console.error('Something went wrong with Mixer.');
+        console.error('Something went wrong.');
         console.error(error);
     });
 
@@ -74,7 +90,7 @@ client.use(new Mixer.OAuthProvider(client, {
     * @param {string[]} endpoints An array of endpoints to connect to
     * @param {string} authkey An authentication key to connect with
     * @returns {Promise.<>}
-    */
+    **/
     function createChatSocket (userId, channelId, endpoints, authkey) {
         // Chat connection
         const socket = new Mixer.Socket(ws, endpoints).boot();
@@ -84,7 +100,7 @@ client.use(new Mixer.OAuthProvider(client, {
             socket.call('msg', [`Hi ${data.username}! I'm the bot! Write !commands and I will show you!`]);
         });
 
-        // React to !commands 
+        // React to !commands
         socket.on('ChatMessage', data => {
             if (data.message.message[0].data.toLowerCase().startsWith('!commands')) {
                 socket.call('msg', [`@${data.user_name} COMMMANDS LIST!`]);
@@ -104,9 +120,6 @@ client.use(new Mixer.OAuthProvider(client, {
             return socket.call('msg', ['Hi! I will show you my Commands list if you !commands.']);
         });
     }
-
-
-
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
